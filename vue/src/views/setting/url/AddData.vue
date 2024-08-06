@@ -1,0 +1,272 @@
+<template>
+  <el-form
+    @submit.prevent="submit()"
+    :model="formData"
+    :rules="rules"
+    ref="formRef"
+  >
+    <div class="modal-body py-10 px-lg-17">
+      <div
+        class="scroll-y me-n7 pe-7"
+        id="kt_modal_add_scroll"
+        data-kt-scroll="true"
+        data-kt-scroll-activate="{default: false, lg: true}"
+        data-kt-scroll-max-height="auto"
+        data-kt-scroll-dependencies="#kt_modal_add"
+        data-kt-scroll-wrappers="#kt_modal_add_scroll"
+        data-kt-scroll-offset="300px"
+      >
+        <div class="fv-row mb-7">
+          <label class="required fs-6 fw-semibold mb-2">Parent</label>
+            <select
+              class="form-select"
+              v-model="formData.parent_id"
+            >
+              <option 
+              v-for="(item, i) in listParent"
+              :key="i"
+              :value="item.id"
+              :label="item.name"></option>
+            </select>
+        </div>
+        <div class="fv-row mb-7">
+          <label class="required fs-6 fw-semibold mb-2">Name</label>
+          <el-form-item prop="name">
+            <el-input
+              v-model="formData.name"
+              type="text"
+              placeholder=""
+            />
+          </el-form-item>
+        </div>
+
+        <div class="fv-row mb-7">
+          <label class="required fs-6 fw-semibold mb-2">Slug</label>
+          <el-form-item prop="slug">
+            <el-input
+              v-model="formData.slug"
+              type="text"
+              placeholder=""
+            />
+          </el-form-item>
+        </div>
+
+        <div class="fv-row mb-7">
+          <label class="required fs-6 fw-semibold mb-2">Path</label>
+          <el-form-item prop="path">
+            <el-input
+              v-model="formData.path"
+              type="text"
+              placeholder=""
+            />
+          </el-form-item>
+        </div>
+
+        <div class="fv-row mb-7">
+          <label class="required fs-6 fw-semibold mb-2">icon</label>
+          <el-form-item prop="icon">
+            <el-input
+              v-model="formData.icon"
+              type="text"
+              placeholder=""
+            />
+          </el-form-item>
+        </div>
+
+        <div class="fv-row mb-7">
+          <label class="required fs-6 fw-semibold mb-2">order</label>
+          <el-form-item prop="order">
+            <el-input
+              v-model="formData.order"
+              type="text"
+              placeholder=""
+            />
+          </el-form-item>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-footer flex-center">
+      <button
+        type="reset"
+        data-bs-dismiss="modal"
+        id="kt_modal_add_cancel"
+        class="btn btn-light me-3"
+      >
+        Close
+      </button>
+      <button
+        :data-kt-indicator="loading ? 'on' : null"
+        class="btn btn-lg btn-primary"
+        type="submit"
+      >
+        <span v-if="!loading" class="indicator-label">
+          Simpan
+          <KTIcon icon-name="arrow-right" icon-class="fs-2 me-2" />
+        </span>
+        <span v-if="loading" class="indicator-progress">
+          Please wait...
+          <span
+            class="spinner-border spinner-border-sm align-middle ms-2"
+          ></span>
+        </span>
+      </button>
+    </div>
+  </el-form>
+</template>
+
+<script lang="ts">
+import { getAssetPath } from "@/core/helpers/assets";
+import { defineComponent, onMounted, ref } from "vue";
+import { countries } from "@/core/data/countries";
+import Swal from "sweetalert2/dist/sweetalert2.js";
+import ApiService from "@/core/services/ApiService";
+
+export default defineComponent({
+  name: "add-customer-modal",
+  components: {},
+  emits: ["on-save"],
+  props: ["data","modal"],
+  setup(props, {emit}) {
+    const dataModal = props.data;
+    const formRef = ref<null | HTMLFormElement>(null);
+    const loading = ref<boolean>(false);
+    const formData = ref({
+      id: null,
+      name : '',
+      slug : '',
+      path : '',
+      icon : '',
+      order : '',
+      parent_id : null,
+    });
+    const listParent = ref([{
+      id: null,
+      name: ""
+    }]);
+
+    const rules = ref({
+      name: [
+        {
+          required: true,
+          message: "Name is required",
+          trigger: "change",
+        },
+      ],
+    });
+    
+    onMounted(() => {
+      console.log(props.modal)
+      if(props.data.id) {
+        formData.value = props.data;
+      }
+      if(props.modal) {
+        getParent();
+      }
+    });
+
+    const getParent = () => {
+      let url = "url?order=parent_id:ASC&limit=0";
+        ApiService.get("",url)
+        .then(({ data }) => {
+            listParent.value = data.data;
+        })
+        .catch(({ response }) => {
+            Swal.fire({
+                text: response.data.message,
+                icon: "error",
+                buttonsStyling: false,
+                confirmButtonText: "Try again!",
+                customClass: {
+                    confirmButton: "btn fw-semobold btn-light-danger",
+                },
+            });
+        });
+    };
+    const submit = () => {
+      if (!formRef.value) {
+        return;
+      }
+      formRef.value.validate((valid: boolean) => {
+        if (valid && loading.value == false) {
+          loading.value = true;
+
+          if(props.data.id){
+            ApiService.put("url/"+props.data.id, formData.value)
+              .then(({ data }) => {
+                Swal.fire({
+                  text: "Data telah tersimpan!",
+                  icon: "success",
+                  buttonsStyling: false,
+                  confirmButtonText: "Ok, got it!",
+                  heightAuto: false,
+                  customClass: {
+                    confirmButton: "btn btn-primary",
+                  },
+                }).then(() => {
+                  emit("on-save");
+                });
+              })
+              .catch(({ response }) => {
+                loading.value = false;
+                Swal.fire({
+                  text: "Sorry, looks like there are some errors detected, please try again.",
+                  icon: "error",
+                  buttonsStyling: false,
+                  confirmButtonText: "Ok, got it!",
+                  heightAuto: false,
+                  customClass: {
+                    confirmButton: "btn btn-primary",
+                  },
+                });
+              });
+          } else {
+            ApiService.post("url", formData.value)
+              .then(({ data }) => {
+                Swal.fire({
+                  text: "Data telah tersimpan!",
+                  icon: "success",
+                  buttonsStyling: false,
+                  confirmButtonText: "Ok, got it!",
+                  heightAuto: false,
+                  customClass: {
+                    confirmButton: "btn btn-primary",
+                  },
+                }).then(() => {
+                  emit("on-save");
+                });
+              })
+              .catch(({ response }) => {
+                loading.value = false;
+                Swal.fire({
+                  text: "Sorry, looks like there are some errors detected, please try again.",
+                  icon: "error",
+                  buttonsStyling: false,
+                  confirmButtonText: "Ok, got it!",
+                  heightAuto: false,
+                  customClass: {
+                    confirmButton: "btn btn-primary",
+                  },
+                });
+              });
+          }
+        } else {
+          return false;
+        }
+      });
+    };
+
+    return {
+      dataModal,
+      formData,
+      rules,
+      submit,
+      formRef,
+      loading,
+      getAssetPath,
+      listParent,
+    };
+  },
+});
+</script>
